@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# MediaPipe assets (scripts/setup-assets.mjs)
+public/mediapipe
