@@ -1,15 +1,16 @@
 import type { App, Scene } from "../app";
-import { beatSec, beatToTime, poseBeats } from "../audio/beat";
-import type { Song } from "../audio/songs";
-import { LEAD_IN_BEATS, newChart, type Chart, type Keyframe } from "../game/chart";
+import { playRange } from "../audio/beat";
+import type { Song } from "../data/library";
+import { newChart, type Chart, type Keyframe } from "../game/chart";
 import { packPose, unpackPose } from "../pose/normalize";
 import { button, h, icon, panel, panelHeader } from "../ui";
 import { Countdown, PoseSampler, Timeline, loadSong, readyGate, sessionHeader } from "./session";
 
 export interface RecordOptions {
   song: Song;
-  interval: number;
   author: string;
+  /** 녹화 전 안내 문구 */
+  subtitle?: string;
   color?: string;
   onDone(chart: Chart): void;
   onBack(): void;
@@ -19,7 +20,7 @@ export interface RecordOptions {
 const CAPTURE_SETTLE = 0.15;
 
 /**
- * 안무 녹화: 음악에 맞춰 정해진 박자마다 플레이어의 포즈를 스냅샷으로 저장한다.
+ * 채보 녹화: 음악에 맞춰 곡의 박자마다 플레이어의 포즈를 스냅샷으로 저장한다.
  */
 export class RecordScene implements Scene {
   readonly immersive = true;
@@ -34,7 +35,6 @@ export class RecordScene implements Scene {
   private flash = h("div", { class: "flash" });
 
   private times: number[] = [];
-  private beats: number[] = [];
   private keyframes: Keyframe[] = [];
   private shutterIdx = 0;
   private captureIdx = 0;
@@ -65,25 +65,23 @@ export class RecordScene implements Scene {
     this.phase = "idle";
     this.app.stage.ghost.setPoints(null, 1);
 
-    const buffer = await loadSong(root, opts.song);
+    const buffer = await loadSong(app, root, opts.song);
     if (!this.alive) return;
     const ok = await readyGate(
       app,
       root,
-      `${opts.author}의 안무 녹화`,
-      `"${opts.song.title}" · ${opts.interval}박마다 포즈 1개 · 상대방이 따라 할 포즈를 박자에 맞춰 취하세요`,
+      `${opts.author}의 채보 녹화`,
+      opts.subtitle ?? `"${opts.song.title}" · 포즈 ${opts.song.beats.length}개 · 셔터 소리에 맞춰 포즈를 취하세요`,
     );
     if (!this.alive) return;
     if (!ok) return opts.onBack();
 
-    const endSec =
-      opts.song.source === "upload" ? Math.min(buffer.duration, app.settings.maxSongSec) : buffer.duration;
-    this.beats = poseBeats(opts.song, opts.interval, LEAD_IN_BEATS, endSec);
-    this.times = this.beats.map((b) => beatToTime(opts.song, b));
+    this.times = [...opts.song.beats];
+    const range = playRange(this.times, buffer.duration);
     this.keyframes = [];
     this.shutterIdx = 0;
     this.captureIdx = 0;
-    this.endTime = endSec;
+    this.endTime = range.end;
 
     this.sampler?.dispose();
     this.sampler = new PoseSampler(app);
@@ -95,11 +93,16 @@ export class RecordScene implements Scene {
       this.counter,
       this.countdown.el,
       this.timeline.el,
-      h("div", { class: "hud-bottom-left" }, button("다시 시작", () => this.abort(), "glass small", "refresh")),
+      h("div", { class: "hud-bottom-left" }, button("다시 시작", () => this.abort(), "small", "refresh")),
     );
     root.append(this.hud, this.flash);
 
-    app.audio.play(buffer, { leadIn: 0.5, endAt: endSec, onEnded: () => this.finish() });
+    app.audio.play(buffer, {
+      from: range.from,
+      leadIn: range.leadIn,
+      endAt: range.end,
+      onEnded: () => this.finish(),
+    });
     this.phase = "recording";
   }
 
@@ -129,7 +132,7 @@ export class RecordScene implements Scene {
     while (this.captureIdx < this.times.length && poseNow >= this.times[this.captureIdx] + CAPTURE_SETTLE) {
       const pose = this.sampler!.nearest(this.times[this.captureIdx], 0.25);
       if (pose) {
-        this.keyframes.push({ beat: this.beats[this.captureIdx], pose: packPose(pose) });
+        this.keyframes.push({ t: this.times[this.captureIdx], pose: packPose(pose) });
         this.lastCaptureAt = now;
       }
       this.captureIdx++;
@@ -146,7 +149,7 @@ export class RecordScene implements Scene {
     }
 
     this.timeline!.update(now, this.shutterIdx);
-    this.countdown.update(now, this.times[0] ?? 0, beatSec(this.opts.song));
+    this.countdown.update(now, this.times[0] ?? 0);
     this.counter.textContent = `${this.keyframes.length} / ${this.times.length} 포즈`;
 
     if (this.captureIdx >= this.times.length && now > this.endTime) this.finish();
@@ -164,7 +167,7 @@ export class RecordScene implements Scene {
     const total = this.times.length;
     const tooFew = n < 3;
     const review = panel(
-        panelHeader(`${this.opts.author}의 녹화 완료`, { kicker: "Review" }),
+        panelHeader(`${this.opts.author}의 녹화 완료`),
         h("div", { class: "stat-inline" }, h("strong", null, String(n)), h("span", null, ` / ${total} 포즈`)),
         tooFew ? h("p", { class: "warn" }, "포즈가 너무 적어요. 전신이 잘 보이게 다시 녹화해 주세요.") : null,
         h("p", { class: "muted" }, "녹화한 포즈가 화면에 차례대로 재생됩니다."),
@@ -178,7 +181,7 @@ export class RecordScene implements Scene {
               class: "btn primary",
               disabled: tooFew,
               onclick: () =>
-                this.opts.onDone(newChart(this.opts.song, this.opts.interval, this.opts.author, this.keyframes)),
+                this.opts.onDone(newChart(this.opts.song, this.opts.author, this.keyframes)),
             },
             icon("check", 18),
             h("span", null, "확정"),

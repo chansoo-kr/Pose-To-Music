@@ -1,8 +1,12 @@
 export interface PlayOptions {
-  /** 재생 시작 전 대기 시간(초). 이 동안 songTime()은 음수 */
+  /** 곡의 이 시점(초)부터 재생 */
+  from?: number;
+  /** 재생 시작 전 대기 시간(초). 이 동안 songTime()은 from보다 작다 */
   leadIn?: number;
   /** 곡의 이 시점(초)에서 페이드아웃하며 정지 */
   endAt?: number;
+  /** 재생 속도 (음정도 같이 바뀜) */
+  rate?: number;
   onEnded?: () => void;
 }
 
@@ -15,6 +19,8 @@ export class AudioEngine {
   private source: AudioBufferSourceNode | null = null;
   private songGain: GainNode | null = null;
   private startAt = 0;
+  private from = 0;
+  private rate = 1;
 
   constructor() {
     this.master.connect(this.ctx.destination);
@@ -34,7 +40,12 @@ export class AudioEngine {
 
   /** 곡 기준 현재 시각(초). 출력 지연을 빼서 "실제로 들리는" 시점에 맞춘다 */
   songTime() {
-    return this.ctx.currentTime - this.startAt - this.outputLatency;
+    return this.from + (this.ctx.currentTime - this.startAt - this.outputLatency) * this.rate;
+  }
+
+  /** 곡 시각 → AudioContext 시각 */
+  private ctxTime(songTime: number) {
+    return this.startAt + (songTime - this.from) / this.rate;
   }
 
   play(buffer: AudioBuffer, opts: PlayOptions = {}) {
@@ -42,17 +53,19 @@ export class AudioEngine {
     const leadIn = opts.leadIn ?? 0;
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
+    src.playbackRate.value = this.rate = opts.rate ?? 1;
     const gain = this.ctx.createGain();
     src.connect(gain).connect(this.master);
 
+    this.from = Math.max(0, Math.min(opts.from ?? 0, buffer.duration));
     this.startAt = this.ctx.currentTime + leadIn + 0.05;
-    src.start(this.startAt);
+    src.start(this.startAt, this.from);
     const end = Math.min(opts.endAt ?? buffer.duration, buffer.duration);
     if (end < buffer.duration) {
-      const fade = 1.5;
-      gain.gain.setValueAtTime(1, this.startAt + end - fade);
-      gain.gain.linearRampToValueAtTime(0, this.startAt + end);
-      src.stop(this.startAt + end);
+      const fade = Math.min(1.5, (end - this.from) / 2);
+      gain.gain.setValueAtTime(1, this.ctxTime(end - fade));
+      gain.gain.linearRampToValueAtTime(0, this.ctxTime(end));
+      src.stop(this.ctxTime(end));
     }
     src.onended = () => {
       if (this.source === src) {
@@ -82,8 +95,8 @@ export class AudioEngine {
 
   /** songTime 기준 시각에 짧은 클릭음 */
   clickAt(songTime: number, freq = 1200, volume = 0.25) {
-    const t = Math.max(this.ctx.currentTime, this.startAt + songTime);
-    this.beep(t, freq, volume, 0.06);
+    const t = Math.max(this.ctx.currentTime, this.ctxTime(songTime));
+    this.beep(t, freq, volume, 0.04);
   }
 
   /** 즉시 효과음 */
@@ -136,9 +149,5 @@ export class AudioEngine {
     g.gain.value = volume;
     src.connect(g).connect(this.master);
     src.start(t);
-  }
-
-  async decode(data: ArrayBuffer) {
-    return this.ctx.decodeAudioData(data);
   }
 }

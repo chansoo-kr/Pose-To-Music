@@ -3,7 +3,7 @@ import type { NormPose } from "../pose/normalize";
 export type Grade = "PERFECT" | "GREAT" | "GOOD" | "MISS";
 export const GRADES: Grade[] = ["PERFECT", "GREAT", "GOOD", "MISS"];
 
-/** 판정 박자 기준 ± 이 시간(초) 안의 프레임 중 최고 점수를 쓴다 */
+/** 판정 시각 기준 ± 이 시간(초) 안의 프레임 중 최고 점수를 쓴다 (박자 간격이 좁으면 더 줄어듦) */
 export const TIMING_WINDOW = 0.3;
 
 /** 몸통 길이 단위 거리: 이 안이면 만점, ZERO 이상이면 0점 */
@@ -27,8 +27,8 @@ export function poseAccuracy(target: NormPose, actual: NormPose, joints: number[
 }
 
 /** 정확도 × 타이밍 가중치 (박자에서 멀수록 최대 25% 감점) */
-export function timedValue(accuracy: number, dt: number) {
-  return accuracy * (1 - 0.25 * Math.min(1, Math.abs(dt) / TIMING_WINDOW));
+export function timedValue(accuracy: number, dt: number, window = TIMING_WINDOW) {
+  return accuracy * (1 - 0.25 * Math.min(1, Math.abs(dt) / window));
 }
 
 export function gradeOf(value: number): Grade {

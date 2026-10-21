@@ -2,13 +2,14 @@ import { J, LANDMARK_COUNT } from "../pose/joints";
 import type { NormPose, Pt } from "../pose/normalize";
 
 /**
- * 싱글 플레이 기본 안무용 포즈 라이브러리.
+ * 에디터 "포즈 라이브러리로 채우기"용 포즈 모음.
  * 정규화 좌표계(엉덩이 중점 원점, 몸통 길이 = 1)에서 관절 각도로 포즈를 만든다.
  *
  * 각도(도): 0 = 아래, 90 = 몸 바깥쪽 수평, 180 = 위, 음수 = 몸 안쪽.
  * 카메라 원본 좌표 기준이라 사람의 왼쪽(L)이 +x 쪽이다.
  */
 interface PoseSpec {
+  name: string;
   lArm: [number, number]; // [윗팔, 아래팔]
   rArm: [number, number];
   lLeg?: [number, number]; // [허벅지, 정강이]
@@ -70,33 +71,21 @@ export function buildPose(spec: PoseSpec): NormPose {
 }
 
 export const POSE_LIBRARY: PoseSpec[] = [
-  { lArm: [90, 90], rArm: [90, 90] }, // T
-  { lArm: [150, 150], rArm: [150, 150] }, // Y
-  { lArm: [175, 175], rArm: [175, 175] }, // 만세
-  { lArm: [170, 170], rArm: [12, 12] }, // 왼손 위
-  { lArm: [12, 12], rArm: [170, 170] }, // 오른손 위
-  { lArm: [90, 180], rArm: [90, 180] }, // 근육 자랑
-  { lArm: [45, -50], rArm: [45, -50] }, // 허리에 손
-  { lArm: [140, 140], rArm: [25, 25] }, // 디스코 (왼쪽)
-  { lArm: [25, 25], rArm: [140, 140] }, // 디스코 (오른쪽)
-  { lArm: [90, 180], rArm: [90, 180], lLeg: [35, 0], rLeg: [35, 0] }, // 기마 자세
-  { lArm: [135, 135], rArm: [135, 135], lLeg: [28, 28], rLeg: [28, 28] }, // 별
-  { lArm: [90, 90], rArm: [90, 90], lLeg: [45, 45] }, // 왼다리 옆으로
-  { lArm: [90, 90], rArm: [90, 90], rLeg: [45, 45] }, // 오른다리 옆으로
-  { lArm: [90, 160], rArm: [10, 10] }, // 왼손 흔들기
-  { lArm: [10, 10], rArm: [90, 160] }, // 오른손 흔들기
-  { lArm: [30, -100], rArm: [30, -100] }, // 팔짱
-  { lArm: [120, 60], rArm: [120, 60], lLeg: [20, 20], rLeg: [20, 20] }, // 갈매기
+  { name: "T자", lArm: [90, 90], rArm: [90, 90] },
+  { name: "Y자", lArm: [150, 150], rArm: [150, 150] },
+  { name: "만세", lArm: [175, 175], rArm: [175, 175] },
+  { name: "왼손 위", lArm: [170, 170], rArm: [12, 12] },
+  { name: "오른손 위", lArm: [12, 12], rArm: [170, 170] },
+  { name: "근육 자랑", lArm: [90, 180], rArm: [90, 180] },
+  { name: "허리에 손", lArm: [45, -50], rArm: [45, -50] },
+  { name: "디스코 (왼쪽)", lArm: [140, 140], rArm: [25, 25] },
+  { name: "디스코 (오른쪽)", lArm: [25, 25], rArm: [140, 140] },
+  { name: "기마 자세", lArm: [90, 180], rArm: [90, 180], lLeg: [35, 0], rLeg: [35, 0] },
+  { name: "별", lArm: [135, 135], rArm: [135, 135], lLeg: [28, 28], rLeg: [28, 28] },
+  { name: "왼다리 옆으로", lArm: [90, 90], rArm: [90, 90], lLeg: [45, 45] },
+  { name: "오른다리 옆으로", lArm: [90, 90], rArm: [90, 90], rLeg: [45, 45] },
+  { name: "왼손 흔들기", lArm: [90, 160], rArm: [10, 10] },
+  { name: "오른손 흔들기", lArm: [10, 10], rArm: [90, 160] },
+  { name: "팔짱", lArm: [30, -100], rArm: [30, -100] },
+  { name: "갈매기", lArm: [120, 60], rArm: [120, 60], lLeg: [20, 20], rLeg: [20, 20] },
 ];
-
-/** 시드 고정 난수 (같은 곡이면 항상 같은 안무) */
-export function seededRandom(seed: string) {
-  let h = 2166136261;
-  for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
-  return () => {
-    h = Math.imul(h ^ (h >>> 15), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-  };
-}

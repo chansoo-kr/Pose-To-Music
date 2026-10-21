@@ -52,16 +52,19 @@ export class SettingsScene implements Scene {
       },
     });
 
-    const maxSong = h(
-      "select",
-      {
-        onchange: (e: Event) => {
-          s.maxSongSec = Number((e.target as HTMLSelectElement).value);
-          app.saveSettings();
-        },
+    const tapLabel = h("span", null, `${s.tapOffsetMs} ms`);
+    const tap = h("input", {
+      type: "range",
+      min: 0,
+      max: 200,
+      step: 5,
+      value: s.tapOffsetMs,
+      oninput: (e: Event) => {
+        s.tapOffsetMs = Number((e.target as HTMLInputElement).value);
+        tapLabel.textContent = `${s.tapOffsetMs} ms`;
+        app.saveSettings();
       },
-      ...[30, 45, 60, 90, 120].map((v) => h("option", { value: v, selected: s.maxSongSec === v }, `${v}초`)),
-    );
+    });
 
     const forceCpu = h("input", {
       type: "checkbox",
@@ -93,7 +96,7 @@ export class SettingsScene implements Scene {
 
     root.append(
       panel(
-        panelHeader("설정", { kicker: "Settings", onBack: () => app.go(new TitleScene(app)) }),
+        panelHeader("설정", { onBack: () => app.go(new TitleScene(app)) }),
         h(
           "label",
           { class: "setting-row" },
@@ -113,10 +116,16 @@ export class SettingsScene implements Scene {
           h("p", { class: "hint" }, "판정이 계속 늦게 나온다고 느껴지면 값을 올리고, 너무 빠르면 낮춰 보세요."),
         ),
         h(
-          "label",
-          { class: "setting-row" },
-          h("div", null, h("strong", null, "업로드 곡 최대 길이"), h("p", { class: "hint" }, "멀티 플레이에서 올린 음악에 적용돼요.")),
-          maxSong,
+          "div",
+          { class: "setting-row column" },
+          h(
+            "div",
+            { class: "setting-title" },
+            h("strong", null, "탭 녹음 보정"),
+            h("span", { class: "value-badge" }, tapLabel),
+          ),
+          tap,
+          h("p", { class: "hint" }, "채보 에디터에서 키를 눌러 찍은 박자가 늦게 찍히면 값을 올려 보세요."),
         ),
         toggle(forceCpu, "CPU 모드 강제", "GPU 가속이 불안정할 때 켜 보세요."),
         toggle(debug, "디버그 정보", "FPS와 추론 시간을 화면 구석에 표시해요."),

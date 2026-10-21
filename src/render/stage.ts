@@ -161,7 +161,7 @@ export class Stage {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.OrthographicCamera(0, 1, 0, -1, -10, 10);
-  readonly ghost = new SkeletonView({ color: 0x3de0ff, lineWidth: 10, opacity: 0.55 }, 0);
+  readonly ghost = new SkeletonView({ color: 0xff5a36, lineWidth: 8, opacity: 0.55 }, 0);
   readonly player = new SkeletonView({ color: 0xffffff, lineWidth: 4, opacity: 0.85 }, 1);
 
   /** 화면 기준 플레이어 위치 (부드럽게 보간됨) */

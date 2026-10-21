@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@fontsource-variable/unbounded':
-        specifier: ^5.3.0
-        version: 5.3.0
       '@mediapipe/tasks-vision':
         specifier: ^1.1.1
         version: 1.1.1
@@ -35,9 +32,6 @@ packages:
 
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
-
-  '@fontsource-variable/unbounded@5.3.0':
-    resolution: {integrity: sha512-ea565Ncn4r7gPdBEHcmaF31V11hDfkL7b/JCklLobQbMfbu2ZZQrVWNgdeEFWFLqNh36yhieZWOgxdAnMTzrLg==}
 
   '@mediapipe/tasks-vision@1.1.1':
     resolution: {integrity: sha512-jwntgT5tzDrKOkqg6xNDNpRcTUnGvmylZE5DFnzPXossiWOIDdZX+C81LI75hlXhsG58YZW+lGzcmjH1qrQE/Q==}
@@ -460,8 +454,6 @@ packages:
 snapshots:
 
   '@dimforge/rapier3d-compat@0.12.0': {}
-
-  '@fontsource-variable/unbounded@5.3.0': {}
 
   '@mediapipe/tasks-vision@1.1.1': {}
 

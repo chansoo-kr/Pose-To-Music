@@ -1,6 +1,7 @@
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import type { App } from "../app";
-import type { Song } from "../audio/songs";
+import { COUNTDOWN_SEC } from "../audio/beat";
+import { loadAudio, type Song } from "../data/library";
 import { isFullBodyVisible, normalize, type NormPose } from "../pose/normalize";
 import { button, h, icon, panel, panelHeader } from "../ui";
 
@@ -21,8 +22,7 @@ export function readyGate(app: App, root: HTMLElement, title: string, subtitle =
     ringWrap.append(h("span", { class: "ready-ring-icon" }, icon("user", 34)));
     const ring = ringWrap.querySelector<SVGCircleElement>(".fill")!;
     const el = panel(
-      panelHeader(title, { kicker: "Ready check" }),
-      subtitle ? h("p", { class: "muted" }, subtitle) : null,
+      panelHeader(title, { sub: subtitle }),
       h("div", { class: "ready-body" }, ringWrap, h("div", null, status, h("p", { class: "muted" }, "머리부터 발끝까지 화면에 보이도록 뒤로 물러나 주세요."))),
       h(
         "div",
@@ -55,11 +55,11 @@ export function readyGate(app: App, root: HTMLElement, title: string, subtitle =
   });
 }
 
-export async function loadSong(root: HTMLElement, song: Song): Promise<AudioBuffer> {
+export async function loadSong(app: App, root: HTMLElement, song: Song): Promise<AudioBuffer> {
   const el = h("div", { class: "loading-pill" }, h("span", { class: "spinner" }), `${song.title} 불러오는 중…`);
   root.append(el);
   try {
-    return await song.load();
+    return await loadAudio(song, app.audio.ctx);
   } finally {
     el.remove();
   }
@@ -94,16 +94,16 @@ export class Timeline {
   }
 }
 
-/** 첫 포즈 직전 4박 카운트다운 */
+/** 첫 포즈 직전 3·2·1 카운트다운 */
 export class Countdown {
   readonly el = h("div", { class: "countdown" });
   private last = "";
 
-  update(now: number, firstTime: number, beat: number) {
+  update(now: number, firstTime: number) {
     const remain = firstTime - now;
     let text = "";
-    if (remain > 0 && remain <= beat * 4) text = String(Math.ceil(remain / beat));
-    else if (remain > beat * 4) text = "준비";
+    if (remain > 0 && remain <= COUNTDOWN_SEC) text = String(Math.ceil(remain));
+    else if (remain > COUNTDOWN_SEC) text = "준비";
     if (text !== this.last) {
       this.last = text;
       this.el.textContent = text;
@@ -154,7 +154,7 @@ export class PoseSampler {
   }
 }
 
-export function sessionHeader(title: string, sub: string, color = "var(--accent)", rec = false) {
+export function sessionHeader(title: string, sub: string, color = "var(--text)", rec = false) {
   return h(
     "div",
     { class: "session-header" },
