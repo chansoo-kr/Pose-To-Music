@@ -9,6 +9,8 @@ export interface Scene {
   showPlayer?: boolean;
   /** 녹화/플레이처럼 카메라를 보여줘야 하는 화면 (기본 false = 메뉴: 카메라 숨김) */
   immersive?: boolean;
+  /** 온라인 방 화면 — 이 화면으로 옮길 때는 방을 닫지 않는다 */
+  online?: boolean;
   enter(root: HTMLElement): void;
   exit?(): void;
   update?(): void;
@@ -23,10 +25,29 @@ export interface Settings {
   /** GPU 가속에 문제가 있을 때 CPU(WASM)로 추론 */
   forceCpu: boolean;
   debug: boolean;
+  /** 멀티에서 쓰는 이름 */
+  nickname: string;
+  /** 멀티 플레이 중 다른 사람 포즈 미니뷰 */
+  showPeers: boolean;
+  /** 직접 넣는 TURN 서버 (비우면 STUN만) */
+  turnUrl: string;
+  turnUser: string;
+  turnPass: string;
 }
 
 const SETTINGS_KEY = "ptm.settings";
-const DEFAULT_SETTINGS: Settings = { model: "full", latencyMs: 80, tapOffsetMs: 0, forceCpu: false, debug: false };
+const DEFAULT_SETTINGS: Settings = {
+  model: "full",
+  latencyMs: 80,
+  tapOffsetMs: 0,
+  forceCpu: false,
+  debug: false,
+  nickname: "",
+  showPeers: true,
+  turnUrl: "",
+  turnUser: "",
+  turnPass: "",
+};
 
 function loadSettings(): Settings {
   try {
@@ -42,6 +63,8 @@ export class App {
   readonly stage: Stage;
   readonly settings = loadSettings();
   readonly ui: HTMLElement;
+  /** 열려 있는 온라인 방. 온라인 화면이 아닌 곳으로 가면 닫는다 */
+  session: { close(): void } | null = null;
 
   private scene: Scene | null = null;
   private debugEl: HTMLElement;
@@ -77,6 +100,11 @@ export class App {
   go(scene: Scene) {
     this.audio.stop();
     this.scene?.exit?.();
+    if (!scene.online && this.session) {
+      const session = this.session;
+      this.session = null;
+      session.close();
+    }
     this.ui.replaceChildren();
     this.stage.ghost.setPoints(null, 1);
     this.stage.ghost.setMarkers([], [], null);

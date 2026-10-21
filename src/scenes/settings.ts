@@ -1,6 +1,7 @@
 import type { App, Scene } from "../app";
 import type { ModelVariant } from "../pose/landmarker";
 import { h, panel, panelHeader } from "../ui";
+import { NAME_MAX } from "../net/protocol";
 import { TitleScene } from "./title";
 
 export class SettingsScene implements Scene {
@@ -84,6 +85,26 @@ export class SettingsScene implements Scene {
       },
     });
 
+    const showPeers = h("input", {
+      type: "checkbox",
+      checked: s.showPeers,
+      onchange: (e: Event) => {
+        s.showPeers = (e.target as HTMLInputElement).checked;
+        app.saveSettings();
+      },
+    });
+
+    /** 텍스트 설정 (바뀔 때마다 저장) */
+    const text = (key: "nickname" | "turnUrl" | "turnUser" | "turnPass", props: Record<string, unknown> = {}) =>
+      h("input", {
+        value: s[key],
+        ...props,
+        oninput: (e: Event) => {
+          s[key] = (e.target as HTMLInputElement).value;
+          app.saveSettings();
+        },
+      });
+
     const toggle = (input: HTMLInputElement, title: string, desc: string) =>
       h(
         "label",
@@ -93,6 +114,7 @@ export class SettingsScene implements Scene {
       );
     forceCpu.classList.add("switch");
     debug.classList.add("switch");
+    showPeers.classList.add("switch");
 
     root.append(
       panel(
@@ -129,6 +151,31 @@ export class SettingsScene implements Scene {
         ),
         toggle(forceCpu, "CPU 모드 강제", "GPU 가속이 불안정할 때 켜 보세요."),
         toggle(debug, "디버그 정보", "FPS와 추론 시간을 화면 구석에 표시해요."),
+        h("div", { class: "section-label" }, "멀티"),
+        h(
+          "label",
+          { class: "setting-row" },
+          h("div", null, h("strong", null, "닉네임"), h("p", { class: "hint" }, "방에서 다른 사람에게 보이는 이름이에요.")),
+          text("nickname", { maxLength: NAME_MAX, placeholder: "닉네임" }),
+        ),
+        toggle(
+          showPeers,
+          "다른 사람 포즈 보기",
+          "플레이 중 순위 보드에 다른 사람의 포즈를 작게 보여 줘요. 화면이 버벅이면 꺼 보세요.",
+        ),
+        h(
+          "div",
+          { class: "setting-row column" },
+          h("strong", null, "TURN 서버 (선택)"),
+          h("p", { class: "hint" }, "다른 네트워크끼리 연결이 안 될 때만 넣으세요. 다음에 방에 들어갈 때부터 적용돼요."),
+          h(
+            "div",
+            { class: "turn-fields" },
+            text("turnUrl", { placeholder: "turn:example.com:3478" }),
+            text("turnUser", { placeholder: "사용자 이름", autocomplete: "off" }),
+            text("turnPass", { type: "password", placeholder: "비밀번호", autocomplete: "new-password" }),
+          ),
+        ),
         status,
       ),
     );

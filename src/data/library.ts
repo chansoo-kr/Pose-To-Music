@@ -1,5 +1,6 @@
 import type { Chart } from "../game/chart";
 import { del, get, getAll, getAllBy, put } from "./db";
+import { sha256Hex } from "./hash";
 
 /** 곡: 음악 파일 + 박자 시각 목록 */
 export interface Song {
@@ -14,6 +15,8 @@ export interface Song {
   beats: number[];
   createdAt: number;
   updatedAt: number;
+  /** 오디오 원본의 SHA-256 — 멀티에서 같은 곡을 가졌는지 확인할 때 씀 (처음 필요할 때 계산) */
+  audioHash?: string;
 }
 
 /** 목록 화면용 요약 (채보 수 포함) */
@@ -37,6 +40,27 @@ export async function deleteSong(id: string) {
   for (const c of await listCharts(id)) await del("charts", c.id);
   await del("songs", id);
   audioCache.delete(id);
+}
+
+/** 오디오 해시를 계산해 곡에 저장한다 (수정 시각은 그대로) */
+export async function ensureHash(song: Song): Promise<string> {
+  if (!song.audioHash) {
+    song.audioHash = await sha256Hex(await song.audio.arrayBuffer());
+    await put("songs", song);
+  }
+  return song.audioHash;
+}
+
+/** 라이브러리 곡의 오디오 해시 목록 */
+export async function libraryHashes(): Promise<string[]> {
+  const out: string[] = [];
+  for (const song of await listSongs()) out.push(await ensureHash(song));
+  return out;
+}
+
+export async function findSongByHash(hash: string): Promise<Song | undefined> {
+  for (const song of await listSongs()) if ((await ensureHash(song)) === hash) return song;
+  return undefined;
 }
 
 export const listCharts = async (songId: string) =>

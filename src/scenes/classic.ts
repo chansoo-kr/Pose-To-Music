@@ -45,7 +45,7 @@ export class ClassicSingleScene implements Scene {
     asyncScreen(async (r) => {
       const { app } = this;
       const entries = await playableLibrary();
-      const back = () => app.go(new ModeScene(app, "classic"));
+      const back = () => app.go(new ModeScene(app));
       if (!entries.length) {
         r.append(panel(panelHeader("기본 모드 · 싱글", { onBack: back }), emptyLibrary("채보가 있는 곡이 없어요.")));
         return;

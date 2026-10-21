@@ -100,6 +100,17 @@ export class PoseTracker {
     this.video.requestVideoFrameCallback(step);
   }
 
+  /** 카메라와 모델을 끈다 (종료) */
+  stop() {
+    this.running = false;
+    for (const t of (this.video.srcObject as MediaStream | null)?.getTracks() ?? []) t.stop();
+    this.video.srcObject = null;
+    this.landmarker?.close();
+    this.landmarker = null;
+    this.model = null;
+    this.latest = null;
+  }
+
   private detect() {
     if (!this.landmarker || this.video.readyState < 2) return;
     // detectForVideo는 단조 증가하는 타임스탬프를 요구한다

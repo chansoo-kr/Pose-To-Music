@@ -4,7 +4,8 @@ import type { Song } from "../data/library";
 import { newChart, type Chart, type Keyframe } from "../game/chart";
 import { packPose, unpackPose } from "../pose/normalize";
 import { button, h, icon, panel, panelHeader } from "../ui";
-import { Countdown, PoseSampler, Timeline, loadSong, readyGate, sessionHeader } from "./session";
+import type { Overlay } from "./play";
+import { BodyHint, Countdown, PoseSampler, Timeline, loadSong, readyGate, sessionHeader } from "./session";
 
 export interface RecordOptions {
   song: Song;
@@ -12,6 +13,10 @@ export interface RecordOptions {
   /** 녹화 전 안내 문구 */
   subtitle?: string;
   color?: string;
+  /** 온라인: 이 시각(performance.now 기준 ms)에 음악을 시작하고, 끝나면 확인 없이 바로 onDone */
+  startAt?: number;
+  /** HUD에 붙일 요소 (온라인 순위 보드) */
+  overlay?: Overlay;
   onDone(chart: Chart): void;
   onBack(): void;
 }
@@ -42,6 +47,8 @@ export class RecordScene implements Scene {
   private endTime = 0;
   private lastCaptureAt = -Infinity;
   private reviewStart = 0;
+  private musicFrom = 0;
+  private hint: BodyHint | null = null;
   private alive = true;
 
   constructor(app: App, opts: RecordOptions) {
@@ -57,6 +64,8 @@ export class RecordScene implements Scene {
   exit() {
     this.alive = false;
     this.sampler?.dispose();
+    this.hint?.dispose();
+    this.opts.overlay?.dispose();
   }
 
   private async begin() {
@@ -67,14 +76,17 @@ export class RecordScene implements Scene {
 
     const buffer = await loadSong(app, root, opts.song);
     if (!this.alive) return;
-    const ok = await readyGate(
-      app,
-      root,
-      `${opts.author}의 채보 녹화`,
-      opts.subtitle ?? `"${opts.song.title}" · 포즈 ${opts.song.beats.length}개 · 셔터 소리에 맞춰 포즈를 취하세요`,
-    );
-    if (!this.alive) return;
-    if (!ok) return opts.onBack();
+    const online = opts.startAt !== undefined;
+    if (!online) {
+      const ok = await readyGate(
+        app,
+        root,
+        `${opts.author}의 채보 녹화`,
+        opts.subtitle ?? `"${opts.song.title}" · 포즈 ${opts.song.beats.length}개 · 셔터 소리에 맞춰 포즈를 취하세요`,
+      );
+      if (!this.alive) return;
+      if (!ok) return opts.onBack();
+    }
 
     this.times = [...opts.song.beats];
     const range = playRange(this.times, buffer.duration);
@@ -82,6 +94,7 @@ export class RecordScene implements Scene {
     this.shutterIdx = 0;
     this.captureIdx = 0;
     this.endTime = range.end;
+    this.musicFrom = range.from;
 
     this.sampler?.dispose();
     this.sampler = new PoseSampler(app);
@@ -93,13 +106,26 @@ export class RecordScene implements Scene {
       this.counter,
       this.countdown.el,
       this.timeline.el,
-      h("div", { class: "hud-bottom-left" }, button("다시 시작", () => this.abort(), "small", "refresh")),
+      h(
+        "div",
+        { class: "hud-bottom-left" },
+        online
+          ? button("그만하기", () => opts.onBack(), "small", "x")
+          : button("다시 시작", () => this.abort(), "small", "refresh"),
+      ),
+      opts.overlay?.el,
     );
     root.append(this.hud, this.flash);
 
+    const wait = online ? Math.max(0, (opts.startAt! - performance.now()) / 1000) : 0;
+    if (online) {
+      this.hint = new BodyHint(app, "채보 녹화 · 셔터 소리에 맞춰 포즈", opts.startAt!);
+      root.append(this.hint.el);
+    }
+
     app.audio.play(buffer, {
       from: range.from,
-      leadIn: range.leadIn,
+      leadIn: range.leadIn + wait,
       endAt: range.end,
       onEnded: () => this.finish(),
     });
@@ -120,6 +146,10 @@ export class RecordScene implements Scene {
     const { app } = this;
     const now = app.audio.songTime();
     const poseNow = app.poseSongTime();
+    if (this.hint && now >= this.musicFrom) {
+      this.hint.dispose();
+      this.hint = null;
+    }
 
     // 셔터음은 박자에 정확히, 실제 프레임 선택은 조금 뒤에
     while (this.shutterIdx < this.times.length && now >= this.times[this.shutterIdx]) {
@@ -158,6 +188,12 @@ export class RecordScene implements Scene {
   private finish() {
     if (this.phase !== "recording") return;
     this.app.audio.stop();
+    if (this.opts.startAt !== undefined) {
+      this.phase = "idle";
+      this.app.stage.ghost.setPoints(null, 1);
+      this.opts.onDone(newChart(this.opts.song, this.opts.author, this.keyframes));
+      return;
+    }
     this.phase = "review";
     this.reviewStart = performance.now();
     this.hud?.remove();

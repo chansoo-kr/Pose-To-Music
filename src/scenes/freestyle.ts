@@ -20,7 +20,7 @@ export class FreestyleSingle {
     app.go(
       asyncScreen(async (root) => {
         const entries = (await listLibrary()).filter((e) => e.song.beats.length);
-        const back = () => app.go(new ModeScene(app, "freestyle"));
+        const back = () => app.go(new ModeScene(app));
         const el = panel(
           panelHeader("프리스타일 · 싱글", { onBack: back }),
           entries.length

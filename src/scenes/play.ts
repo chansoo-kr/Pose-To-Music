@@ -15,7 +15,7 @@ import {
 import { DIFFICULTY_JOINTS, DIFFICULTY_LABEL, type Difficulty } from "../pose/joints";
 import { unpackPose, type NormPose } from "../pose/normalize";
 import { button, h } from "../ui";
-import { Countdown, PoseSampler, Timeline, loadSong, readyGate, sessionHeader } from "./session";
+import { BodyHint, Countdown, PoseSampler, Timeline, loadSong, readyGate, sessionHeader } from "./session";
 
 export interface PlayOptions {
   song: Song;
@@ -23,8 +23,19 @@ export interface PlayOptions {
   difficulty: Difficulty;
   playerName: string;
   color?: string;
+  /** 온라인: 이 시각(performance.now 기준 ms)에 음악을 시작한다. 전신 확인을 기다리지 않음 */
+  startAt?: number;
+  /** HUD에 붙일 요소 (온라인 순위 보드) */
+  overlay?: Overlay;
+  /** 판정마다 현재 점수·콤보 */
+  onScore?(score: number, combo: number): void;
   onDone(result: PlayResult): void;
   onBack(): void;
+}
+
+export interface Overlay {
+  el: HTMLElement;
+  dispose(): void;
 }
 
 interface Target {
@@ -64,6 +75,8 @@ export class PlayScene implements Scene {
   private progress = h("div", { class: "progress-fill" });
   private playing = false;
   private endTime = 0;
+  private musicFrom = 0;
+  private hint: BodyHint | null = null;
   private alive = true;
 
   constructor(app: App, opts: PlayOptions) {
@@ -80,20 +93,24 @@ export class PlayScene implements Scene {
   exit() {
     this.alive = false;
     this.sampler?.dispose();
+    this.hint?.dispose();
+    this.opts.overlay?.dispose();
   }
 
   private async begin() {
     const { app, opts, root } = this;
     const buffer = await loadSong(app, root, opts.song);
     if (!this.alive) return;
-    const ok = await readyGate(
-      app,
-      root,
-      `${opts.playerName}의 차례`,
-      `"${opts.song.title}" · ${opts.chart.author}의 채보 · ${DIFFICULTY_LABEL[opts.difficulty]} (관절 ${this.joints.length}개)`,
-    );
-    if (!this.alive) return;
-    if (!ok) return opts.onBack();
+    if (opts.startAt === undefined) {
+      const ok = await readyGate(
+        app,
+        root,
+        `${opts.playerName}의 차례`,
+        `"${opts.song.title}" · ${opts.chart.author}의 채보 · ${DIFFICULTY_LABEL[opts.difficulty]} (관절 ${this.joints.length}개)`,
+      );
+      if (!this.alive) return;
+      if (!ok) return opts.onBack();
+    }
 
     const keyframes = [...opts.chart.keyframes].sort((a, b) => a.t - b.t);
     const times = keyframes.map((k) => k.t);
@@ -101,6 +118,7 @@ export class PlayScene implements Scene {
     this.targets = keyframes.map((k, i) => ({ time: k.t, window: windows[i], pose: unpackPose(k.pose), best: 0 }));
     const range = playRange(times, buffer.duration);
     this.endTime = range.end;
+    this.musicFrom = range.from;
 
     // 판정 구간 안의 프레임마다 최고 점수 갱신
     this.sampler = new PoseSampler(app, (t, pose) => {
@@ -128,12 +146,20 @@ export class PlayScene implements Scene {
         this.judgeLayer,
         this.timeline.el,
         h("div", { class: "hud-bottom-left" }, button("그만하기", () => opts.onBack(), "small", "x")),
+        opts.overlay?.el,
       ),
     );
 
+    // 온라인: 정해진 시각까지 무음으로 기다린다
+    const wait = opts.startAt === undefined ? 0 : Math.max(0, (opts.startAt - performance.now()) / 1000);
+    if (opts.startAt !== undefined) {
+      this.hint = new BodyHint(app, `${opts.chart.author}의 채보 · ${DIFFICULTY_LABEL[opts.difficulty]}`, opts.startAt);
+      root.append(this.hint.el);
+    }
+
     app.audio.play(buffer, {
       from: range.from,
-      leadIn: range.leadIn,
+      leadIn: range.leadIn + wait,
       endAt: range.end,
       onEnded: () => this.finish(),
     });
@@ -145,11 +171,16 @@ export class PlayScene implements Scene {
     const { app } = this;
     const now = app.audio.songTime();
     const poseNow = app.poseSongTime();
+    if (this.hint && now >= this.musicFrom) {
+      this.hint.dispose();
+      this.hint = null;
+    }
 
     while (this.judged < this.targets.length && poseNow > this.targets[this.judged].time + this.targets[this.judged].window) {
       const { grade, points } = this.keeper.add(this.targets[this.judged].best);
       this.judged++;
       this.showJudge(grade, points);
+      this.opts.onScore?.(this.keeper.score, this.keeper.combo);
     }
 
     this.updateGhost(now);

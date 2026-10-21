@@ -10,17 +10,26 @@ import { button, h, icon, panel, panelHeader } from "../ui";
  * "바로 시작"으로 건너뛸 수도 있다.
  * @returns false면 취소
  */
+function readyRing() {
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  const el = h("div", { class: "ready-ring" });
+  el.innerHTML =
+    `<svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="${R}"/>` +
+    `<circle class="fill" cx="60" cy="60" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg>`;
+  el.append(h("span", { class: "ready-ring-icon" }, icon("user", 34)));
+  const fill = el.querySelector<SVGCircleElement>(".fill")!;
+  return { el, set: (p: number) => (fill.style.strokeDashoffset = String(C * (1 - p))) };
+}
+
+const bodyText = (app: App, ok: boolean) =>
+  ok ? "좋아요! 그대로 있어 주세요" : app.tracker.latest ? "전신이 다 보이지 않아요" : "사람이 보이지 않아요";
+
 export function readyGate(app: App, root: HTMLElement, title: string, subtitle = ""): Promise<boolean> {
   return new Promise((resolve) => {
     const status = h("div", { class: "ready-status" }, "인식 중…");
-    const R = 52;
-    const C = 2 * Math.PI * R;
-    const ringWrap = h("div", { class: "ready-ring" });
-    ringWrap.innerHTML =
-      `<svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="${R}"/>` +
-      `<circle class="fill" cx="60" cy="60" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg>`;
-    ringWrap.append(h("span", { class: "ready-ring-icon" }, icon("user", 34)));
-    const ring = ringWrap.querySelector<SVGCircleElement>(".fill")!;
+    const ring = readyRing();
+    const ringWrap = ring.el;
     const el = panel(
       panelHeader(title, { sub: subtitle }),
       h("div", { class: "ready-body" }, ringWrap, h("div", null, status, h("p", { class: "muted" }, "머리부터 발끝까지 화면에 보이도록 뒤로 물러나 주세요."))),
@@ -41,8 +50,8 @@ export function readyGate(app: App, root: HTMLElement, title: string, subtitle =
       if (!ok) since = 0;
       else if (!since) since = now;
       const p = since ? Math.min(1, (now - since) / 1500) : 0;
-      ring.style.strokeDashoffset = String(C * (1 - p));
-      status.textContent = ok ? "좋아요! 그대로 있어 주세요" : app.tracker.latest ? "전신이 다 보이지 않아요" : "사람이 보이지 않아요";
+      ring.set(p);
+      status.textContent = bodyText(app, ok);
       status.classList.toggle("ok", ok);
       if (p >= 1) done(true);
     }, 100);
@@ -53,6 +62,40 @@ export function readyGate(app: App, root: HTMLElement, title: string, subtitle =
       resolve(v);
     }
   });
+}
+
+/**
+ * 온라인 시작 전 안내: 정해진 시각까지 남은 시간과 전신 인식 상태를 보여 준다 (기다리지는 않음).
+ */
+export class BodyHint {
+  readonly el: HTMLElement;
+  private timer: number;
+
+  constructor(app: App, title: string, startAt: number) {
+    const status = h("div", { class: "ready-status" });
+    const remain = h("strong", { class: "hint-remain" });
+    const ring = readyRing();
+    this.el = panel(
+      panelHeader(title),
+      h("div", { class: "ready-body" }, ring.el, h("div", null, status, h("p", { class: "muted" }, "머리부터 발끝까지 화면에 보이도록 뒤로 물러나 주세요."))),
+      h("div", { class: "hint-start" }, "시작까지 ", remain),
+    );
+    this.el.classList.add("ready-gate", "dock");
+    const tick = () => {
+      const ok = isFullBodyVisible(app.tracker.latest);
+      ring.set(ok ? 1 : 0);
+      status.textContent = bodyText(app, ok);
+      status.classList.toggle("ok", ok);
+      remain.textContent = `${Math.max(0, Math.ceil((startAt - performance.now()) / 1000))}초`;
+    };
+    tick();
+    this.timer = window.setInterval(tick, 100);
+  }
+
+  dispose() {
+    window.clearInterval(this.timer);
+    this.el.remove();
+  }
 }
 
 export async function loadSong(app: App, root: HTMLElement, song: Song): Promise<AudioBuffer> {
