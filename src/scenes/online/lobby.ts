@@ -1,5 +1,7 @@
 import type { Scene } from "../../app";
+import { LENIENCY_LABEL } from "../../game/scoring";
 import type { GameMode, MemberState } from "../../net/protocol";
+import { relayStatus } from "../../net/relays";
 import { DIFFICULTY_LABEL } from "../../pose/joints";
 import { button, formatTime, h, icon, panel, setChildren } from "../../ui";
 import { roomFormScene } from "./form";
@@ -26,6 +28,7 @@ function statusText(m: MemberState) {
 export class LobbyScene implements Scene {
   private session: OnlineSession;
   private off: (() => void) | null = null;
+  private timer = 0;
 
   constructor(session: OnlineSession) {
     this.session = session;
@@ -33,6 +36,7 @@ export class LobbyScene implements Scene {
 
   exit() {
     this.off?.();
+    window.clearInterval(this.timer);
   }
 
   enter(root: HTMLElement) {
@@ -42,6 +46,17 @@ export class LobbyScene implements Scene {
     const el = panel(body);
     el.classList.add("wide", "game-panel");
     root.append(el);
+
+    // 방장: 시그널링 릴레이가 하나도 안 붙으면 아무도 이 방을 찾지 못한다
+    const relayWarn = h("p", { class: "warn", hidden: true }, "시그널링 서버에 연결되지 않아 다른 사람이 이 방을 찾지 못할 수 있어요.");
+    if (net.isHost) {
+      const since = performance.now();
+      const check = () => {
+        const r = relayStatus();
+        relayWarn.hidden = !(r.total && !r.open && performance.now() - since > 5000);
+      };
+      this.timer = window.setInterval(check, 1000);
+    }
 
     const copyCode = () => void navigator.clipboard?.writeText(net.code).catch(() => {});
 
@@ -87,7 +102,7 @@ export class LobbyScene implements Scene {
             ? h("span", { class: "member-bar" }, h("span", { style: `width:${Math.round(m.progress * 100)}%` }))
             : null,
           h("span", { class: "member-status" }, statusText(m)),
-          h("span", { class: "member-ping" }, m.id === s.hostId ? "" : m.ping === null ? "-" : `${m.ping}ms`),
+          m.id === s.hostId || m.ping === null ? null : h("span", { class: "member-ping" }, `${m.ping}ms`),
         ),
       );
       for (let i = s.members.length; i < set.max; i++) slots.push(h("li", { class: "member empty-slot" }, "빈 자리"));
@@ -141,11 +156,13 @@ export class LobbyScene implements Scene {
             info("곡", set.song ? `${set.song.title} (${formatTime(set.song.durationSec)})` : "-"),
             set.mode === "classic" ? info("채보", set.chart ? `${set.chart.author || "이름 없음"} · 포즈 ${set.chart.poses}개` : "-") : null,
             info("난이도", DIFFICULTY_LABEL[set.level]),
+            info("판정", LENIENCY_LABEL[set.leniency]),
             info("인원", `${s.members.length} / ${set.max}`),
             net.isHost ? button("설정 바꾸기", editSettings, "small", "settings") : null,
           ),
         ),
         session.notice ? h("p", { class: "warn" }, session.notice) : null,
+        relayWarn,
         h("div", { class: "lobby-foot" }, h("span", { class: "hint" }, hint), action),
       );
     };

@@ -1,6 +1,7 @@
 import type { Scene } from "../../app";
 import { listLibrary, type Song, type SongEntry } from "../../data/library";
 import type { Chart } from "../../game/chart";
+import { LENIENCIES, LENIENCY_LABEL, type Leniency } from "../../game/scoring";
 import { MAX_PLAYERS, MAX_SONG_BYTES, MIN_PLAYERS } from "../../net/config";
 import { ROOM_NAME_MAX, type GameMode } from "../../net/protocol";
 import type { Difficulty } from "../../pose/joints";
@@ -13,6 +14,7 @@ export interface RoomFormValues {
   max: number;
   mode: GameMode;
   level: Difficulty;
+  leniency: Leniency;
   password: string;
   songId: string | null;
   chartId: string | null;
@@ -141,6 +143,7 @@ export function roomFormScene(opts: RoomFormOptions): Scene {
           { class: "field" },
           "방 이름",
           h("input", {
+            type: "text",
             value: v.name,
             maxLength: ROOM_NAME_MAX,
             oninput: (e: Event) => (v.name = (e.target as HTMLInputElement).value),
@@ -178,11 +181,17 @@ export function roomFormScene(opts: RoomFormOptions): Scene {
       ),
       label("난이도"),
       difficultyPicker(v.level, (d) => (v.level = d)),
+      label("판정 여유"),
+      segmented(
+        LENIENCIES.map((x) => ({ value: x, label: LENIENCY_LABEL[x] })),
+        v.leniency,
+        (x) => (v.leniency = x),
+      ),
       label("곡"),
       songsBox,
       chartsBox,
       error,
-      h("div", { class: "row" }, submit),
+      h("div", { class: "row form-actions" }, submit),
     );
     el.classList.add("wide", "game-panel");
     root.append(el);

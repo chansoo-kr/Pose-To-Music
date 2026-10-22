@@ -218,6 +218,7 @@ body[data-mode="menu"] #camera {
 .panel-sub {
   color: var(--text-2);
   font-size: 13px;
+  white-space: pre-line;
 }
 
 .row {
@@ -367,14 +368,18 @@ body[data-mode="menu"] #camera {
 
 button:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
 input:not([type]),
+input[type="text"],
+input[type="password"],
 input[type="number"],
-select {
+select,
+textarea {
   height: 36px;
   padding: 0 10px;
   border: 1px solid var(--border-strong);
@@ -389,6 +394,13 @@ select {
 input[type="number"] {
   width: 100px;
   font-variant-numeric: tabular-nums;
+}
+
+textarea {
+  height: auto;
+  padding: 8px 10px;
+  line-height: 1.5;
+  resize: vertical;
 }
 
 input:disabled,
@@ -486,7 +498,23 @@ input[type="checkbox"] {
   color: var(--bg);
 }
 
+.game-panel .segmented {
+  border-radius: var(--r-xl);
+}
+
+.game-panel .seg.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: inset 0 -3px 0 var(--accent-deep);
+}
+
+.game-panel .seg.active small {
+  color: inherit;
+}
+
 .spinner {
+  display: inline-block;
+  vertical-align: -2px;
   width: 14px;
   height: 14px;
   border: 2px solid var(--border-strong);
@@ -567,9 +595,9 @@ body[data-mode="menu"]::before {
 }
 
 .game-btn.main {
-  width: 260px;
-  height: 64px;
-  font-size: 24px;
+  width: clamp(240px, 25vh, 320px);
+  height: clamp(56px, 6.5vh, 76px);
+  font-size: clamp(22px, 2.5vh, 28px);
 }
 
 .game-btn.main.active {
@@ -585,9 +613,9 @@ body[data-mode="menu"]::before {
 }
 
 .game-btn.sub {
-  width: 150px;
-  height: 52px;
-  font-size: 20px;
+  width: clamp(140px, 14vh, 180px);
+  height: clamp(48px, 5.4vh, 62px);
+  font-size: clamp(18px, 2.1vh, 24px);
   background: var(--accent);
   border-color: var(--accent);
   border-bottom-color: var(--accent-deep);
@@ -655,6 +683,16 @@ body[data-mode="menu"]::before {
   border-bottom-color: var(--accent-deep);
 }
 
+/* 긴 폼에서도 확인 버튼이 화면 밖으로 밀리지 않게 패널 아래에 붙인다 */
+.panel .form-actions {
+  position: sticky;
+  bottom: 0;
+  margin: 0 -24px -24px;
+  padding: 12px 24px 24px;
+  background: linear-gradient(to bottom, transparent, var(--surface) 12px);
+  z-index: 1;
+}
+
 .btn.big {
   height: 48px;
   padding: 0 24px;
@@ -678,13 +716,14 @@ body[data-mode="menu"]::before {
   width: min(560px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  align-items: center;
+  gap: clamp(28px, 4.5vh, 56px);
 }
 
 .logo-stair {
   display: flex;
   flex-direction: column;
-  font-size: clamp(44px, 9vw, 72px);
+  font-size: clamp(44px, min(9vw, 10vh), 100px);
   font-weight: 900;
   line-height: 0.95;
   letter-spacing: -0.03em;
@@ -704,9 +743,8 @@ body[data-mode="menu"]::before {
 .main-menu {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 18px;
-  padding-left: 12%;
+  align-items: center;
+  gap: clamp(14px, 2.4vh, 24px);
 }
 
 .main-menu > * {
@@ -768,6 +806,7 @@ body[data-mode="menu"]::before {
 }
 
 .title-foot {
+  width: min(440px, 100%);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1045,7 +1084,151 @@ button.list-row:hover {
 
 .pose-row select {
   flex: 1;
+  min-width: 0;
   height: 32px;
+}
+
+/* 포즈 편집: 왼쪽 박자 목록 + 오른쪽 편집기 */
+.pose-edit {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 420px);
+  gap: 16px;
+  align-items: start;
+}
+
+.pose-edit .pose-list {
+  grid-template-columns: 1fr;
+  max-height: calc(100dvh - 240px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.pose-edit .pose-row {
+  cursor: pointer;
+}
+
+.pose-edit .pose-row:hover {
+  border-color: var(--border-strong);
+}
+
+.pose-row.selected {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.pe-panel {
+  position: sticky;
+  top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.pe-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pe-title {
+  font-variant-numeric: tabular-nums;
+}
+
+.pe-nav,
+.pe-tools,
+.pe-options {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pe-options {
+  justify-content: space-between;
+}
+
+.pe-options select {
+  height: 32px;
+}
+
+.pose-editor {
+  display: block;
+  width: 100%;
+  max-height: calc(100dvh - 380px);
+  min-height: 260px;
+  touch-action: none;
+  user-select: none;
+}
+
+.pe-guides rect {
+  fill: var(--bg);
+  stroke: var(--border);
+  stroke-width: 0.01;
+}
+
+.pe-guides line {
+  stroke: var(--border);
+  stroke-width: 0.01;
+  stroke-dasharray: 0.05 0.05;
+}
+
+.pe-onion line {
+  stroke: var(--text-3);
+  stroke-width: 0.05;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+
+.pe-bones line {
+  stroke: var(--text);
+  stroke-width: 0.07;
+  stroke-linecap: round;
+}
+
+.pe-face {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 0.05;
+}
+
+.pe-handle {
+  cursor: grab;
+}
+
+.pe-handle.active {
+  cursor: grabbing;
+}
+
+.pe-hit {
+  fill: transparent;
+}
+
+.pe-dot {
+  fill: var(--surface-2);
+  stroke: var(--text);
+  stroke-width: 0.025;
+}
+
+.pe-handle.root .pe-dot {
+  fill: var(--text-2);
+}
+
+.pe-handle.judged .pe-dot {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.pe-handle:hover .pe-dot,
+.pe-handle.active .pe-dot {
+  stroke: var(--accent);
+  stroke-width: 0.04;
+  r: 0.085;
 }
 
 .pose-idx {
@@ -1192,9 +1375,29 @@ button.list-row:hover {
   position: absolute;
   top: 16px;
   right: 16px;
-  min-width: 140px;
+  min-width: 120px;
   padding: 8px 14px;
   text-align: right;
+}
+
+.hud-time {
+  font-size: 12px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 이름표 + 그만하기 */
+.hud-top-left {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-top-left .session-header {
+  position: static;
 }
 
 .hud-score {
@@ -1208,7 +1411,10 @@ button.list-row:hover {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-2);
-  min-height: 19px;
+}
+
+.hud-combo:empty {
+  display: none;
 }
 
 .hud-counter {
@@ -1232,7 +1438,7 @@ button.list-row:hover {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 4px;
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -1273,12 +1479,79 @@ button.list-row:hover {
 
 .timeline-marker {
   position: absolute;
+  left: 0;
   top: 50%;
   width: 14px;
   height: 14px;
   margin: -7px 0 0 -7px;
   border-radius: 50%;
   background: var(--text);
+  will-change: transform;
+}
+
+.timeline.with-poses {
+  height: 72px;
+  background: rgba(20, 20, 20, 0.6);
+}
+
+.timeline.with-poses .timeline-judge {
+  z-index: 0;
+}
+
+.timeline-pose {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+  background: rgba(28, 28, 28, 0.92);
+  overflow: hidden;
+  will-change: transform;
+  transition: border-color 80ms ease-out;
+}
+
+.timeline-pose canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.timeline-pose.next {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.timeline-pose.judged,
+.timeline-marker.judged {
+  animation: judged-out 300ms ease-out forwards;
+}
+
+.timeline-pose.grade-perfect {
+  border-color: var(--perfect);
+}
+
+.timeline-pose.grade-great {
+  border-color: var(--great);
+}
+
+.timeline-pose.grade-good {
+  border-color: var(--good);
+}
+
+.timeline-pose.grade-miss {
+  border-color: var(--miss);
+}
+
+@keyframes judged-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .countdown {
@@ -1632,9 +1905,86 @@ button.list-row:hover {
 }
 
 .code-join summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
   cursor: pointer;
   color: var(--text-2);
   font-size: 14px;
+}
+
+.code-join summary::-webkit-details-marker {
+  display: none;
+}
+
+.code-join summary .icon {
+  transform: rotate(180deg);
+  transition: transform 120ms ease-out;
+}
+
+.code-join[open] summary .icon {
+  transform: rotate(270deg);
+}
+
+.code-join summary:hover {
+  color: var(--text);
+}
+
+/* 방 목록 헤더 오른쪽: 릴레이 연결 상태 */
+.panel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.relay-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.relay-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.relay-status.ok::before {
+  background: var(--ok);
+}
+
+.relay-status.warn::before {
+  background: var(--good);
+}
+
+.relay-status.bad {
+  color: var(--miss);
+}
+
+.relay-status.bad::before {
+  background: var(--miss);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.empty strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.empty.bad {
+  border-color: var(--miss);
 }
 
 .code-join .row {
@@ -1952,8 +2302,17 @@ button.list-row:hover {
 
 .turn-fields {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.turn-fields .turn-url {
+  grid-column: 1 / -1;
+}
+
+.relay-input {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
 }
 
 /* =========================================================
@@ -1976,6 +2335,18 @@ button.list-row:hover {
 
 .setting-row strong {
   font-weight: 600;
+}
+
+.setting-row > input[type="text"] {
+  flex: 0 0 220px;
+}
+
+.setting-row .segmented {
+  flex-shrink: 0;
+}
+
+.setting-row + .section-label {
+  margin-top: 16px;
 }
 
 .setting-title {
@@ -2059,6 +2430,7 @@ input.switch {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .timeline-pose.judged,
   .judge,
   .flash.on,
   .countdown.pop,
@@ -2094,8 +2466,14 @@ input.switch {
   .tile-row,
   .form-grid,
   .lobby-grid,
-  .turn-fields {
+  .turn-fields,
+  .pose-edit {
     grid-template-columns: 1fr;
+  }
+
+  .pe-panel {
+    position: static;
+    order: -1;
   }
 
   .main-menu {

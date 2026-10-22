@@ -7,7 +7,9 @@ import { parseCheck, parseRoomInfo, type CheckReq, type CheckRes, type RoomInfo 
 /*
  * 로비 방: Trystero에는 방 목록 기능이 없어서, 모두가 같은 "lobby" 방에 들어가
  * 방장들이 자기 방 정보를 알린다.
- * 목록만 보는 사람은 passive로 들어가 서로 연결하지 않는다 → 연결 수 = 방장 수.
+ * 목록 보는 사람도 일반 피어로 들어간다 (v3는 passive였지만, Nostr announce가 60초 간격이라
+ * 방이 만들어진 뒤에 목록을 열면 최대 1분 동안 아무것도 안 보였다). 목록 보는 사람끼리도
+ * 연결되지만, 로비에 머무는 시간이 짧고 인원이 적어서 괜찮다.
  */
 
 /** 방장 쪽: 방 정보를 주기적으로 알리고, 참가 전 비밀번호 확인에 답한다 */
@@ -50,7 +52,9 @@ export class LobbyBrowser {
   private checker;
 
   constructor(settings: Settings) {
-    this.room = joinRoom({ ...roomConfig(settings), passive: true }, LOBBY_ROOM);
+    // passive로 들어가면 방장의 다음 announce(Nostr는 60초 간격)를 들을 때까지 아무것도 못 본다.
+    // 일반 피어로 들어가 내가 먼저 알려야 방장이 바로 연결해 온다.
+    this.room = joinRoom(roomConfig(settings), LOBBY_ROOM);
     const info = channel<RoomInfo>(this.room, "info", RECV_SMALL_BYTES);
     this.checker = request<CheckReq, CheckRes>(this.room, "check", RECV_SMALL_BYTES);
     info.on((data, peerId) => {

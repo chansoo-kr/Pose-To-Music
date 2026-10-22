@@ -1,7 +1,8 @@
 import type { App, Scene } from "../app";
 import { listLibrary, type Song, type SongEntry } from "../data/library";
 import type { Chart } from "../game/chart";
-import type { PlayResult } from "../game/scoring";
+import { downloadJudgeLog } from "../game/judgelog";
+import { LENIENCY_LABEL, type PlayResult } from "../game/scoring";
 import { DIFFICULTY_LABEL, type Difficulty } from "../pose/joints";
 import { button, h, label, panel, panelHeader } from "../ui";
 import { asyncScreen, chartInfo, difficultyPicker, emptyLibrary, rankOf, resultTable, screen, songList } from "./common";
@@ -47,7 +48,9 @@ export class ClassicSingleScene implements Scene {
       const entries = await playableLibrary();
       const back = () => app.go(new ModeScene(app));
       if (!entries.length) {
-        r.append(panel(panelHeader("기본 모드 · 싱글", { onBack: back }), emptyLibrary("채보가 있는 곡이 없어요.")));
+        const empty = panel(panelHeader("기본 모드 · 싱글", { onBack: back }), emptyLibrary("채보가 있는 곡이 없어요."));
+        empty.classList.add("game-panel");
+        r.append(empty);
         return;
       }
 
@@ -73,7 +76,7 @@ export class ClassicSingleScene implements Scene {
         songs,
         charts,
       );
-      el.classList.add("wide");
+      el.classList.add("wide", "game-panel");
       r.append(el);
     }).enter(root);
   }
@@ -92,14 +95,16 @@ export function playSingle(
       song,
       chart,
       difficulty: lastDifficulty,
-      playerName: "플레이어",
-      onDone: (result) =>
+      leniency: app.settings.leniency,
+      playerName: app.settings.nickname || "플레이어",
+      onDone: (result, log) =>
         app.go(
           screen((root) => {
             const rank = rankOf(result.accuracy);
-            root.append(
-              panel(
-                panelHeader("결과", { sub: `${song.title} · ${chart.author}의 채보 · ${DIFFICULTY_LABEL[lastDifficulty]}` }),
+            const el = panel(
+                panelHeader("결과", {
+                  sub: `${song.title} · ${chart.author}의 채보 · ${DIFFICULTY_LABEL[lastDifficulty]} · 판정 ${LENIENCY_LABEL[app.settings.leniency]}`,
+                }),
                 h(
                   "div",
                   { class: "result-hero" },
@@ -111,11 +116,13 @@ export function playSingle(
                 h(
                   "div",
                   { class: "row" },
+                  log ? button("판정 기록 내보내기", () => downloadJudgeLog(log), "ghost", "download") : null,
                   button("나가기", onBack),
                   button("다시 하기", () => playSingle(app, song, chart, onBack, extra), "primary", "refresh"),
                 ),
-              ),
             );
+            el.classList.add("game-panel");
+            root.append(el);
           }),
         ),
       onBack,

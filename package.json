@@ -7,7 +7,10 @@
     "setup": "node scripts/setup-assets.mjs",
     "dev": "node scripts/setup-assets.mjs && vite",
     "build": "node scripts/setup-assets.mjs && tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check-relays": "node scripts/check-relays.mjs",
+    "test": "node scripts/test.mjs",
+    "rejudge": "node scripts/rejudge.mjs"
   },
   "devDependencies": {
     "@types/three": "^0.186.0",

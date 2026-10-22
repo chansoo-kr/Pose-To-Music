@@ -3,6 +3,7 @@ import type { App } from "../app";
 import { COUNTDOWN_SEC } from "../audio/beat";
 import { loadAudio, type Song } from "../data/library";
 import { isFullBodyVisible, normalize, type NormPose } from "../pose/normalize";
+import { drawMiniPose } from "../render/minipose";
 import { button, h, icon, panel, panelHeader } from "../ui";
 
 /**
@@ -108,32 +109,110 @@ export async function loadSong(app: App, root: HTMLElement, song: Song): Promise
   }
 }
 
-/** 화면 하단 박자 타임라인: 판정 지점으로 마커가 흘러 들어온다 */
+export interface TimelineOptions {
+  /** 박자마다 목표 포즈 ([x, y] 33개) — 있으면 원 안에 스켈레톤을 그려 미리 보여 준다 */
+  poses?: [number, number][][];
+  /** 원 안에서 강조할 판정 관절 */
+  joints?: number[];
+  /** 판정선까지 보여 주는 시간(초) */
+  lookahead?: number;
+}
+
+interface TimelineItem {
+  t: number;
+  el: HTMLElement | null;
+  /** 판정이 끝나 사라지는 중이거나 사라짐 */
+  gone: boolean;
+}
+
+/** 판정선 위치 (타임라인 너비 비율) */
+const JUDGE_AT = 0.12;
+/** 포즈 원 지름 (px) */
+const POSE_SIZE = 56;
+
+/**
+ * 화면 하단 박자 타임라인: 판정선으로 원이 흘러 들어온다.
+ * 포즈를 주면 원 안에 그 박자의 목표 포즈를 그린다 (원마다 한 번만, 보이기 시작할 때).
+ */
 export class Timeline {
   readonly el = h("div", { class: "timeline" }, h("div", { class: "timeline-judge" }));
-  private markers: HTMLElement[];
-  private times: number[];
+  private items: TimelineItem[];
+  private opts: TimelineOptions;
   private lookahead: number;
+  private width = 0;
+  private resize: ResizeObserver;
 
-  constructor(times: number[], lookahead = 3) {
-    this.times = times;
-    this.lookahead = lookahead;
-    this.markers = times.map(() => {
-      const m = h("div", { class: "timeline-marker" });
-      this.el.append(m);
-      return m;
-    });
+  constructor(times: number[], opts: TimelineOptions = {}) {
+    this.opts = opts;
+    this.lookahead = opts.lookahead ?? 3;
+    this.items = times.map((t) => ({ t, el: null, gone: false }));
+    if (opts.poses) this.el.classList.add("with-poses");
+    this.resize = new ResizeObserver(() => (this.width = this.el.clientWidth));
+    this.resize.observe(this.el);
   }
 
   update(now: number, doneCount: number) {
-    const JUDGE = 12;
-    this.times.forEach((t, i) => {
-      const m = this.markers[i];
-      const x = JUDGE + ((t - now) / this.lookahead) * (100 - JUDGE);
-      const visible = i >= doneCount && x < 102 && x > -5;
-      m.style.display = visible ? "block" : "none";
-      if (visible) m.style.left = `${x}%`;
-    });
+    const width = (this.width ||= this.el.clientWidth);
+    if (!width) return;
+    const judgeX = width * JUDGE_AT;
+    const half = this.opts.poses ? POSE_SIZE / 2 : 7;
+    for (let i = 0; i < this.items.length; i++) {
+      const item = this.items[i];
+      if (item.gone && !item.el) continue;
+      const x = judgeX + ((item.t - now) / this.lookahead) * (width - judgeX);
+      if (x > width + half) break; // 시각순이라 뒤는 모두 안 보임
+      // 판정 없이 지나간 원 (미리보기) 또는 화면 왼쪽 밖
+      if ((i < doneCount && !item.gone) || x < -half) {
+        this.remove(item);
+        continue;
+      }
+      const el = (item.el ??= this.create(i));
+      const next = i === doneCount && !item.gone;
+      el.classList.toggle("next", next);
+      el.style.transform = `translateX(${x.toFixed(1)}px)${next && this.opts.poses ? " scale(1.15)" : ""}`;
+    }
+  }
+
+  /** 판정 결과: 원을 판정 색으로 바꾸고 흐리게 사라지게 한다 */
+  judge(index: number, grade: string) {
+    const item = this.items[index];
+    if (!item || item.gone) return;
+    item.gone = true;
+    if (!item.el) return;
+    item.el.classList.remove("next");
+    item.el.classList.add("judged", `grade-${grade.toLowerCase()}`);
+    window.setTimeout(() => this.remove(item), 300);
+  }
+
+  dispose() {
+    this.resize.disconnect();
+  }
+
+  private remove(item: TimelineItem) {
+    item.gone = true;
+    item.el?.remove();
+    item.el = null;
+  }
+
+  private create(i: number): HTMLElement {
+    const pose = this.opts.poses?.[i];
+    const el = h("div", { class: pose ? "timeline-pose" : "timeline-marker", style: `z-index:${this.items.length - i}` });
+    if (pose) {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const canvas = h("canvas", { width: POSE_SIZE * dpr, height: POSE_SIZE * dpr });
+      const ctx = canvas.getContext("2d")!;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawMiniPose(ctx, pose, POSE_SIZE, POSE_SIZE, {
+        bone: "#ececec",
+        lineWidth: 2.5,
+        joints: this.opts.joints,
+        joint: "#ff5a36",
+        head: "#ececec",
+      });
+      el.append(canvas);
+    }
+    this.el.append(el);
+    return el;
   }
 }
 

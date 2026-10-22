@@ -35,7 +35,7 @@ export class FreestyleSingle {
               )
             : emptyLibrary("박자가 있는 곡이 없어요."),
         );
-        el.classList.add("wide");
+        el.classList.add("wide", "game-panel");
         root.append(el);
       }),
     );
@@ -56,7 +56,7 @@ export class FreestyleSingle {
   private play(song: Song, chart: Chart) {
     let saved = false;
     playSingle(this.app, song, chart, () => this.start(), () => {
-      const name = h("input", { value: "나", maxLength: 12, placeholder: "만든 사람" });
+      const name = h("input", { type: "text", value: "나", maxLength: 12, placeholder: "만든 사람" });
       const save = button(
         saved ? "저장됨" : "채보 저장",
         async () => {

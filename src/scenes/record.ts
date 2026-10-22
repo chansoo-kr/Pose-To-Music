@@ -63,6 +63,7 @@ export class RecordScene implements Scene {
 
   exit() {
     this.alive = false;
+    this.timeline?.dispose();
     this.sampler?.dispose();
     this.hint?.dispose();
     this.opts.overlay?.dispose();

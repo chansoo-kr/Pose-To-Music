@@ -1,4 +1,4 @@
-import { BONES } from "../../pose/joints";
+import { drawMiniPose } from "../../render/minipose";
 import { h } from "../../ui";
 import type { Overlay } from "../play";
 import type { OnlineSession } from "./session";
@@ -59,25 +59,11 @@ export function liveBoard(session: OnlineSession): Overlay {
     ctx.clearRect(0, 0, MINI_W, MINI_H);
     const entry = session.poses.get(id);
     if (!entry) return;
-    const p = entry.pose;
-    // 정규화 좌표: 원점 = 엉덩이, 몸통 = 1. 대략 x ±1.6, y -2.3 ~ 1.9. 화면처럼 거울 반전
-    const scale = MINI_H / 4.4;
-    const X = (i: number) => MINI_W / 2 - p[i][0] * scale;
-    const Y = (i: number) => MINI_H * 0.53 + p[i][1] * scale;
-    ctx.globalAlpha = now - entry.at > STALE_MS ? 0.3 : 1;
-    ctx.strokeStyle = "#ececec";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    for (const [a, b] of BONES) {
-      ctx.moveTo(X(a), Y(a));
-      ctx.lineTo(X(b), Y(b));
-    }
-    ctx.stroke();
-    ctx.fillStyle = "#ff5a36";
-    ctx.beginPath();
-    ctx.arc(X(0), Y(0), 4, 0, Math.PI * 2);
-    ctx.fill();
+    drawMiniPose(ctx, entry.pose, MINI_W, MINI_H, {
+      bone: "#ececec",
+      head: "#ff5a36",
+      alpha: now - entry.at > STALE_MS ? 0.3 : 1,
+    });
   };
 
   const render = () => {

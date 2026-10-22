@@ -248,6 +248,7 @@ export class OnlineSession {
           song,
           chart: chart!,
           difficulty: s.settings.level,
+          leniency: s.settings.leniency,
           playerName: this.name,
           startAt,
           overlay: liveBoard(this),

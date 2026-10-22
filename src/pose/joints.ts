@@ -42,10 +42,10 @@ export const DIFFICULTY_JOINTS: Record<Difficulty, number[]> = {
 };
 
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
-  easy: "Easy",
-  normal: "Normal",
-  hard: "Hard",
-  expert: "Expert",
+  easy: "쉬움",
+  normal: "보통",
+  hard: "어려움",
+  expert: "최고",
 };
 
 export const DIFFICULTIES: Difficulty[] = ["easy", "normal", "hard", "expert"];

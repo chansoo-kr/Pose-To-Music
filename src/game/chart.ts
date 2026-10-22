@@ -9,6 +9,8 @@ export interface Keyframe {
   pose: [number, number][];
   /** 포즈 라이브러리에서 고른 포즈면 그 인덱스 */
   lib?: number;
+  /** 에디터에서 관절을 끌어 직접 고친 포즈 */
+  edited?: true;
 }
 
 export interface Chart {

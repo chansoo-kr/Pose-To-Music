@@ -73,6 +73,7 @@ export function createRoom(app: App) {
         max: 4,
         mode: "classic",
         level: "normal",
+        leniency: "normal",
         password: "",
         songId: null,
         chartId: null,

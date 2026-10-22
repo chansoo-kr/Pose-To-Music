@@ -3,9 +3,32 @@ import type { Settings } from "../app";
 import { sha256Hex } from "../data/hash";
 
 /** Trystero 앱 이름 — 같은 appId끼리만 서로 보인다 */
-export const APP_ID = "pose-to-music/v3";
+export const APP_ID = "pose-to-music/v4";
 /** 프로토콜 버전. 다르면 방 목록에 안 보이고 참가도 거절된다 */
-export const PROTOCOL = 3;
+export const PROTOCOL = 4;
+
+/**
+ * 시그널링 릴레이 (Nostr). 모든 사람이 같은 목록을 써야 서로 보인다 — 바꾸면 APP_ID도 올릴 것.
+ * Trystero 기본값(appId로 고른 5개)은 AUTH 요구·kind 제한 릴레이가 섞여 방 목록이 안 떴다.
+ * 2026-10-22 `pnpm check-relays`로 왕복 확인한 릴레이들.
+ */
+export const RELAY_URLS = [
+  "wss://nos.lol",
+  "wss://relay.aarpia.com",
+  "wss://nostr.red5d.dev",
+  "wss://relay.agentry.com",
+  "wss://relay.flashapp.me",
+  "wss://testr.nymble.world",
+];
+
+/** 설정의 릴레이 입력(한 줄에 하나)을 읽는다. 비었거나 쓸 만한 줄이 없으면 기본 목록 */
+export function relayUrls(text: string): string[] {
+  const urls = text
+    .split(/\s+/)
+    .map((s) => s.trim())
+    .filter((s) => /^wss:\/\/[^\s]+$/.test(s));
+  return urls.length ? [...new Set(urls)] : RELAY_URLS;
+}
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
@@ -36,7 +59,7 @@ export const LOBBY_ROOM = "lobby";
 export const gameRoomId = (code: string) => `room-${code}`;
 
 export function roomConfig(settings: Settings, password?: string): JoinRoomConfig {
-  const config: JoinRoomConfig = { appId: APP_ID };
+  const config: JoinRoomConfig = { appId: APP_ID, relayConfig: { urls: relayUrls(settings.relays) } };
   if (password) config.password = password;
   const url = settings.turnUrl.trim();
   if (url) {

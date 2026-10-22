@@ -32,6 +32,7 @@ export class PreviewScene implements Scene {
 
   exit() {
     this.alive = false;
+    this.timeline?.dispose();
   }
 
   private async begin(root: HTMLElement) {
@@ -40,15 +41,19 @@ export class PreviewScene implements Scene {
     if (!this.alive) return;
     this.times = chart.keyframes.map((k) => k.t);
     const range = playRange(this.times, buffer.duration);
-    this.timeline = new Timeline(this.times);
+    this.timeline = new Timeline(this.times, { poses: chart.keyframes.map((k) => k.pose) });
     root.append(
       h(
         "div",
         { class: "hud" },
-        sessionHeader("미리보기", `${this.song.title} · ${chart.author}의 채보`),
+        h(
+          "div",
+          { class: "hud-top-left" },
+          sessionHeader("미리보기", `${this.song.title} · ${chart.author}의 채보`),
+          button("닫기", this.onBack, "small", "x"),
+        ),
         this.countdown.el,
         this.timeline.el,
-        h("div", { class: "hud-bottom-left" }, button("닫기", this.onBack, "small", "x")),
       ),
     );
     app.audio.play(buffer, { from: range.from, leadIn: range.leadIn, endAt: range.end, onEnded: this.onBack });

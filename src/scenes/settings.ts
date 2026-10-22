@@ -1,6 +1,8 @@
 import type { App, Scene } from "../app";
+import { LENIENCIES, LENIENCY_LABEL } from "../game/scoring";
+import { RELAY_URLS } from "../net/config";
 import type { ModelVariant } from "../pose/landmarker";
-import { h, panel, panelHeader } from "../ui";
+import { h, panel, panelHeader, segmented } from "../ui";
 import { NAME_MAX } from "../net/protocol";
 import { TitleScene } from "./title";
 
@@ -97,6 +99,7 @@ export class SettingsScene implements Scene {
     /** 텍스트 설정 (바뀔 때마다 저장) */
     const text = (key: "nickname" | "turnUrl" | "turnUser" | "turnPass", props: Record<string, unknown> = {}) =>
       h("input", {
+        type: "text",
         value: s[key],
         ...props,
         oninput: (e: Event) => {
@@ -104,6 +107,27 @@ export class SettingsScene implements Scene {
           app.saveSettings();
         },
       });
+
+    const leniency = segmented(
+      LENIENCIES.map((v) => ({ value: v, label: LENIENCY_LABEL[v] })),
+      s.leniency,
+      (v) => {
+        s.leniency = v;
+        app.saveSettings();
+      },
+    );
+
+    const relays = h("textarea", {
+      class: "relay-input",
+      rows: 3,
+      spellcheck: false,
+      value: s.relays,
+      placeholder: RELAY_URLS.join("\n"),
+      oninput: (e: Event) => {
+        s.relays = (e.target as HTMLTextAreaElement).value;
+        app.saveSettings();
+      },
+    });
 
     const toggle = (input: HTMLInputElement, title: string, desc: string) =>
       h(
@@ -116,9 +140,16 @@ export class SettingsScene implements Scene {
     debug.classList.add("switch");
     showPeers.classList.add("switch");
 
-    root.append(
-      panel(
+    const el = panel(
         panelHeader("설정", { onBack: () => app.go(new TitleScene(app)) }),
+        h("div", { class: "section-label" }, "게임"),
+        h(
+          "div",
+          { class: "setting-row" },
+          h("div", null, h("strong", null, "판정 여유"), h("p", { class: "hint" }, "포즈를 얼마나 정확히 맞춰야 하는지예요. 온라인에서는 방장이 정한 값을 따라요.")),
+          leniency,
+        ),
+        h("div", { class: "section-label" }, "카메라 · 인식"),
         h(
           "label",
           { class: "setting-row" },
@@ -150,7 +181,7 @@ export class SettingsScene implements Scene {
           h("p", { class: "hint" }, "채보 에디터에서 키를 눌러 찍은 박자가 늦게 찍히면 값을 올려 보세요."),
         ),
         toggle(forceCpu, "CPU 모드 강제", "GPU 가속이 불안정할 때 켜 보세요."),
-        toggle(debug, "디버그 정보", "FPS와 추론 시간을 화면 구석에 표시해요."),
+        toggle(debug, "디버그 정보", "FPS와 추론 시간을 화면 구석에 표시하고, 결과 화면에서 판정 기록을 내보낼 수 있어요."),
         h("div", { class: "section-label" }, "멀티"),
         h(
           "label",
@@ -171,13 +202,25 @@ export class SettingsScene implements Scene {
           h(
             "div",
             { class: "turn-fields" },
-            text("turnUrl", { placeholder: "turn:example.com:3478" }),
+            text("turnUrl", { placeholder: "turn:example.com:3478", class: "turn-url" }),
             text("turnUser", { placeholder: "사용자 이름", autocomplete: "off" }),
             text("turnPass", { type: "password", placeholder: "비밀번호", autocomplete: "new-password" }),
           ),
         ),
+        h(
+          "div",
+          { class: "setting-row column" },
+          h("strong", null, "시그널링 릴레이 (고급)"),
+          h(
+            "p",
+            { class: "hint" },
+            "방 목록이 안 뜰 때만 바꾸세요. 한 줄에 wss:// 주소 하나씩, 비우면 기본 목록을 써요. 같이 할 사람 모두 같은 값을 넣어야 해요. 앱을 다시 열면 적용돼요.",
+          ),
+          relays,
+        ),
         status,
-      ),
     );
+    el.classList.add("game-panel");
+    root.append(el);
   }
 }

@@ -2,6 +2,7 @@ import { joinRoom, selfId, type Room } from "trystero";
 import type { App } from "../app";
 import { libraryHashes, loadAudio, type Song } from "../data/library";
 import type { Chart } from "../game/chart";
+import type { Leniency } from "../game/scoring";
 import type { Difficulty } from "../pose/joints";
 import { channel, request } from "./channel";
 import { clockNow, measureOffset } from "./clock";
@@ -83,6 +84,7 @@ export interface HostOptions {
   max: number;
   mode: GameMode;
   level: Difficulty;
+  leniency: Leniency;
   password: string;
   song: Song;
   chart: Chart | null;
@@ -219,6 +221,7 @@ export class NetRoom {
       max: opts.max,
       mode: opts.mode,
       level: opts.level,
+      leniency: opts.leniency,
       song: await songMetaOf(opts.song),
       chart: opts.mode === "classic" && opts.chart ? chartMetaOf(opts.chart) : null,
     };
@@ -319,6 +322,7 @@ export class NetRoom {
       mode: s.settings.mode,
       song: s.settings.song?.title ?? "",
       level: s.settings.level,
+      leniency: s.settings.leniency,
       players: s.members.length,
       max: s.settings.max,
       locked: s.locked,

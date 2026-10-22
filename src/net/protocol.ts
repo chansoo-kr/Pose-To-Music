@@ -1,5 +1,5 @@
 import type { Chart } from "../game/chart";
-import { GRADES, type PlayResult } from "../game/scoring";
+import { GRADES, LENIENCIES, type Leniency, type PlayResult } from "../game/scoring";
 import { DIFFICULTIES, type Difficulty } from "../pose/joints";
 import { MAX_PLAYERS, PROTOCOL } from "./config";
 
@@ -36,6 +36,8 @@ export interface RoomSettings {
   max: number;
   mode: GameMode;
   level: Difficulty;
+  /** 판정 여유 — 공정하도록 방 전체가 같은 값을 쓴다 */
+  leniency: Leniency;
   song: SongMeta | null;
   /** 기본 모드에서 모두가 플레이할 채보 */
   chart: ChartMeta | null;
@@ -123,6 +125,7 @@ export interface RoomInfo {
   mode: GameMode;
   song: string;
   level: Difficulty;
+  leniency: Leniency;
   players: number;
   max: number;
   locked: boolean;
@@ -211,6 +214,7 @@ export function parseState(x: unknown): RoomState | null {
       max: Math.min(MAX_PLAYERS, Math.max(2, Math.round(s.max))),
       mode,
       level,
+      leniency: oneOf(s.leniency, LENIENCIES) ?? "normal",
       song: s.song === null ? null : parseSongMeta(s.song),
       chart: s.chart === null ? null : parseChartMeta(s.chart),
     },
@@ -318,6 +322,7 @@ export function parseRoomInfo(x: unknown): RoomInfo | null {
     mode,
     song: str(x.song, 120),
     level,
+    leniency: oneOf(x.leniency, LENIENCIES) ?? "normal",
     players: x.players,
     max: x.max,
     locked: x.locked === true,

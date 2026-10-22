@@ -39,6 +39,7 @@ export class EditorScene implements Scene {
   private body = h("div", { class: "editor-body" });
   private tabsEl = h("div");
   private grid: HTMLElement | null = null;
+  private chartsTab: ChartsTab | null = null;
   private onKey = (e: KeyboardEvent) => this.key(e);
   private onUnload = (e: BeforeUnloadEvent) => {
     if (this.dirty) e.preventDefault();
@@ -153,12 +154,11 @@ export class EditorScene implements Scene {
 
   private renderBody() {
     if (this.tab === "charts") {
-      this.body.replaceChildren(
-        new ChartsTab(this.app, this.song, this.dirty, (n) => {
-          this.chartsCount = n;
-          this.renderTabs();
-        }).el,
-      );
+      this.chartsTab = new ChartsTab(this.app, this.song, this.dirty, (n) => {
+        this.chartsCount = n;
+        this.renderTabs();
+      });
+      this.body.replaceChildren(this.chartsTab.el);
       return;
     }
 
@@ -368,7 +368,11 @@ export class EditorScene implements Scene {
   // ---- 키보드 ----
 
   private key(e: KeyboardEvent) {
-    if (this.tab !== "beats" || isTyping(e.target)) return;
+    if (isTyping(e.target)) return;
+    if (this.tab === "charts") {
+      if (this.chartsTab?.key(e)) e.preventDefault();
+      return;
+    }
     const ctrl = e.ctrlKey || e.metaKey;
     const k = e.key;
     // 버튼에 포커스가 있으면 Space/Enter가 버튼을 누르지 않도록

@@ -1,4 +1,5 @@
 import { AudioEngine } from "./audio/player";
+import type { Leniency } from "./game/scoring";
 import type { ModelVariant } from "./pose/landmarker";
 import { PoseTracker } from "./pose/landmarker";
 import { Stage } from "./render/stage";
@@ -33,6 +34,10 @@ export interface Settings {
   turnUrl: string;
   turnUser: string;
   turnPass: string;
+  /** 시그널링 릴레이 (한 줄에 하나, 비우면 기본 목록) — 같이 할 사람 모두 같아야 함 */
+  relays: string;
+  /** 싱글 판정 여유 (온라인은 방 설정을 따름) */
+  leniency: Leniency;
 }
 
 const SETTINGS_KEY = "ptm.settings";
@@ -47,6 +52,8 @@ const DEFAULT_SETTINGS: Settings = {
   turnUrl: "",
   turnUser: "",
   turnPass: "",
+  relays: "",
+  leniency: "normal",
 };
 
 function loadSettings(): Settings {

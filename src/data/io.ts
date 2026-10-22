@@ -19,11 +19,11 @@ const JSON_EXT = ".ptm.json";
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
 /** 파일 이름으로 쓸 수 없는 글자 제거 */
-const safeName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, "_").trim() || "song";
+export const safeName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, "_").trim() || "song";
 
 const extOf = (name: string) => name.match(/\.[^.]+$/)?.[0] ?? "";
 
-function download(blob: Blob, name: string) {
+export function download(blob: Blob, name: string) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = name;
